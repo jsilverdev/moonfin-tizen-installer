@@ -1,0 +1,8 @@
+# Apps2Samsung binaries and downloaded packages
+.tools/
+
+# Local certificates, cache, and per-TV state
+.state/
+
+# Local logs
+*.log
