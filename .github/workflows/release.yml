@@ -39,11 +39,11 @@ jobs:
         run: |
           set -Eeuo pipefail
           mkdir -p release/windows release/linux
-          cp install.ps1 README.md release/windows/
-          cp install.sh README.md release/linux/
+          cp install.ps1 README.md README.es.md release/windows/
+          cp install.sh README.md README.es.md release/linux/
           chmod +x release/linux/install.sh
-          (cd release/windows && zip -9 "../moonfin-tizen-installer-${RELEASE_TAG}-windows.zip" install.ps1 README.md)
-          tar -C release/linux -czf "release/moonfin-tizen-installer-${RELEASE_TAG}-linux.tar.gz" install.sh README.md
+          (cd release/windows && zip -9 "../moonfin-tizen-installer-${RELEASE_TAG}-windows.zip" install.ps1 README.md README.es.md)
+          tar -C release/linux -czf "release/moonfin-tizen-installer-${RELEASE_TAG}-linux.tar.gz" install.sh README.md README.es.md
           (cd release && sha256sum *.zip *.tar.gz > SHA256SUMS)
       - name: Publish GitHub release
         env:
