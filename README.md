@@ -2,7 +2,7 @@
 
 Instala o actualiza **Moonfin** de forma segura en un Samsung TV con Tizen desde Windows o Linux. Ambos instaladores usan el catalogo firmado de [Apps2Samsung](https://github.com/Apps2Samsung/Apps2Samsung), conservan el mismo certificado entre actualizaciones y verifican el resultado consultando de nuevo la lista de aplicaciones del TV.
 
-- **Windows:** `Install-Moonfin.ps1`
+- **Windows:** `install.ps1`
 - **Linux:** `install.sh`
 
 Los scripts **no desinstalan aplicaciones** y nunca usan `--remove-first` ni `--allow-remove`.
@@ -30,13 +30,13 @@ Ejecuta el instalador como usuario normal. No requiere instalar Apps2Samsung glo
 ### Windows
 
 ```powershell
-.\Install-Moonfin.ps1 -TvIp 192.168.1.11 -Launch
+.\install.ps1 -TvIp 192.168.1.11 -Launch
 ```
 
 Con opciones explicitas:
 
 ```powershell
-.\Install-Moonfin.ps1 `
+.\install.ps1 `
   -TvIp 192.168.1.11 `
   -LocalIp 192.168.1.100 `
   -Variant Regular `
@@ -65,7 +65,7 @@ Con opciones explicitas:
 Para comprobar la conexion, la configuracion del TV y el catalogo sin instalar:
 
 ```powershell
-.\Install-Moonfin.ps1 -TvIp 192.168.1.11 -ValidateOnly
+.\install.ps1 -TvIp 192.168.1.11 -ValidateOnly
 ```
 
 ```bash
@@ -81,7 +81,7 @@ Ejecuta exactamente el mismo comando. El instalador consulta la ultima publicaci
 Para reinstalar la misma version:
 
 ```powershell
-.\Install-Moonfin.ps1 -TvIp 192.168.1.11 -Force
+.\install.ps1 -TvIp 192.168.1.11 -Force
 ```
 
 ```bash

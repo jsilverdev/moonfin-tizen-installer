@@ -14,7 +14,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate Bash syntax
         run: |
           bash -n ./install.sh
@@ -27,11 +27,11 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate PowerShell syntax
         shell: pwsh
         run: |
-          $files = @('.\Install-Moonfin.ps1', '.\tests\integration-windows.ps1', '.\tests\mock-apps2samsung.ps1')
+          $files = @('.\install.ps1', '.\Install-Moonfin.ps1', '.\tests\integration-windows.ps1', '.\tests\mock-apps2samsung.ps1')
           foreach ($file in $files) {
             $tokens = $null
             $errors = $null

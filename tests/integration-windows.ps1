@@ -5,7 +5,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $rootDirectory = Split-Path -Parent $PSScriptRoot
-$installer = Join-Path $rootDirectory 'Install-Moonfin.ps1'
+$installer = Join-Path $rootDirectory 'install.ps1'
 $mockCli = Join-Path $PSScriptRoot 'mock-apps2samsung.ps1'
 
 function Invoke-Installer {
@@ -70,3 +70,4 @@ Assert-FailureContains -Name 'application missing after install' -Expected 'no a
 }
 
 Write-Host "`nAll Windows integration tests passed."
+exit 0
