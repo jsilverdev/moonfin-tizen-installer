@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  schedule:
+    - cron: '23 7 * * 1'
 
 permissions:
   contents: read
@@ -20,6 +22,7 @@ jobs:
           bash -n ./install.sh
           bash -n ./tests/integration-linux.sh
           bash -n ./tests/mock-apps2samsung.sh
+          bash -n ./tests/contract-live.sh
       - name: Run Linux integration tests
         run: bash ./tests/integration-linux.sh
 
@@ -44,3 +47,14 @@ jobs:
       - name: Run Windows integration tests
         shell: pwsh
         run: .\tests\integration-windows.ps1
+
+  live-contract:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate current Apps2Samsung contract
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash ./tests/contract-live.sh

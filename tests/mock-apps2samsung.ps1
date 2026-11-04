@@ -31,10 +31,37 @@ switch ($CommandName) {
         } | ConvertTo-Json -Compress -Depth 5
     }
     'installed' {
-        $apps = if ($env:MOCK_APP_MISSING -eq '1') { @() } else { @(@{ appId = 'MoonfinApp.moonfin'; version = '1.2.3' }) }
+        $installedDuringRun = $env:MOCK_INSTALLED_MARKER -and (Test-Path -LiteralPath $env:MOCK_INSTALLED_MARKER)
+        $version = if ($installedDuringRun) { '1.2.3' } elseif ($env:MOCK_CURRENT_VERSION) { $env:MOCK_CURRENT_VERSION } else { '1.2.3' }
+        $appId = if ($env:MOCK_APP_ID) { $env:MOCK_APP_ID } else { 'MoonfinApp.moonfin' }
+        $catalogFile = if ($env:MOCK_CATALOG_FILE) { $env:MOCK_CATALOG_FILE } else { 'Moonfin_Tizen_Regular_v1.2.3.wgt' }
+        $apps = if ($env:MOCK_APP_MISSING -eq '1') { @() } else {
+            @(@{ appId = $appId; title = 'Moonfin'; version = $version; catalogApp = 'Moonfin'; catalogFile = $catalogFile })
+        }
         @{ apps = $apps } | ConvertTo-Json -Compress -Depth 3
     }
-    'install' { @{ ok = $true } | ConvertTo-Json -Compress }
+    'cert' {
+        $profiles = switch ($env:MOCK_CERT_STATE) {
+            'missing' { @(@{ level = 'Public'; exists = $false; usable = $false; duids = @() }) }
+            'expired' { @(@{ level = 'Public'; exists = $true; usable = $false; validUntil = '2025-01-01'; duids = @('mock-duid') }) }
+            default { @(@{ level = 'Public'; exists = $true; usable = $true; validUntil = '2030-01-01'; duids = @('mock-duid') }) }
+        }
+        @{ ok = $true; tvDuid = 'mock-duid'; profiles = $profiles } | ConvertTo-Json -Compress -Depth 4
+    }
+    'install' {
+        if ($env:MOCK_EXPECT_ARGUMENT -and $RemainingArguments -notcontains $env:MOCK_EXPECT_ARGUMENT) {
+            @{ error = "missing expected argument: $($env:MOCK_EXPECT_ARGUMENT)" } | ConvertTo-Json -Compress
+            exit 1
+        }
+        if ($env:MOCK_INSTALL_ERROR) {
+            @{ error = $env:MOCK_INSTALL_ERROR } | ConvertTo-Json -Compress
+            exit 1
+        }
+        if ($env:MOCK_INSTALLED_MARKER) {
+            New-Item -ItemType File -Path $env:MOCK_INSTALLED_MARKER -Force | Out-Null
+        }
+        @{ ok = $true } | ConvertTo-Json -Compress
+    }
     'launch' { @{ ok = $true } | ConvertTo-Json -Compress }
     default {
         @{ error = "unexpected command: $CommandName" } | ConvertTo-Json -Compress

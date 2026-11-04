@@ -10,6 +10,15 @@ $mockCli = Join-Path $PSScriptRoot 'mock-apps2samsung.ps1'
 
 function Invoke-Installer {
     param([string[]]$Arguments, [hashtable]$Environment = @{})
+    $marker = Join-Path ([IO.Path]::GetTempPath()) "moonfin-test-installed-$PID-$([Guid]::NewGuid().ToString('N'))"
+    $installerState = "$marker-state.json"
+    $Environment = $Environment.Clone()
+    $Environment.MOCK_INSTALLED_MARKER = $marker
+    $Environment.MOONFIN_INSTALLER_STATE_PATH = $installerState
+    if ($Environment.ContainsKey('MOCK_PRESET_VARIANT')) {
+        @{ appId = 'MoonfinApp.moonfin'; version = '1.2.3'; variant = [string]$Environment.MOCK_PRESET_VARIANT; file = 'remembered.wgt' } |
+            ConvertTo-Json | Set-Content -LiteralPath $installerState -Encoding UTF8
+    }
     $saved = @{}
     foreach ($name in $Environment.Keys) {
         $saved[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
@@ -23,6 +32,8 @@ function Invoke-Installer {
         foreach ($name in $Environment.Keys) {
             [Environment]::SetEnvironmentVariable($name, $saved[$name], 'Process')
         }
+        Remove-Item -LiteralPath $marker -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $installerState -Force -ErrorAction SilentlyContinue
     }
 }
 
@@ -68,6 +79,43 @@ Assert-FailureContains -Name 'CLI failure' -Expected 'simulated tv failure' -Arg
 Assert-FailureContains -Name 'application missing after install' -Expected 'no aparece en la lista nueva del TV' -Arguments ($common + '-Force') -Environment @{
     MOCK_APP_MISSING = '1'
 }
+
+$variant = Assert-Success -Name 'variant change at same version' -Arguments ($common + @('-Variant', 'Oblong')) -Environment @{
+    MOCK_CATALOG_FILE = 'Moonfin_Tizen_Regular_v1.2.3.wgt'
+}
+if (-not $variant.Output.Contains('Cambiando Moonfin')) { throw 'Variant change was not detected.' }
+$rememberedVariant = Assert-Success -Name 'remembered variant is preserved' -Arguments $common -Environment @{
+    MOCK_PRESET_VARIANT = 'Oblong'
+}
+if (-not $rememberedVariant.Output.Contains('ya esta actualizado (Oblong)')) { throw 'Remembered variant was not preserved.' }
+
+Assert-FailureContains -Name 'downgrade is blocked' -Expected 'Se bloqueo el downgrade' -Arguments $common -Environment @{
+    MOCK_CURRENT_VERSION = '10.0.0'
+}
+$downgrade = Assert-Success -Name 'explicit downgrade' -Arguments ($common + '-AllowDowngrade') -Environment @{
+    MOCK_CURRENT_VERSION = '10.0.0'
+}
+if (-not $downgrade.Output.Contains('por solicitud explicita')) { throw 'Explicit downgrade confirmation missing.' }
+
+Assert-FailureContains -Name 'missing update certificate' -Expected 'no contiene un certificado reutilizable' -Arguments ($common + '-Force') -Environment @{
+    MOCK_CERT_STATE = 'missing'
+}
+Assert-FailureContains -Name 'expired update certificate' -Expected 'certificado guardado esta vencido' -Arguments ($common + '-Force') -Environment @{
+    MOCK_CERT_STATE = 'expired'
+}
+Assert-FailureContains -Name 'certificate mismatch diagnosis' -Expected 'firmado con otro certificado' -Arguments ($common + '-Force') -Environment @{
+    MOCK_INSTALL_ERROR = 'Author certificate not match'
+}
+
+$alternate = Assert-Success -Name 'alternate remembered app id' -Arguments $common -Environment @{
+    MOCK_APP_ID = 'A2S12345.moonfin'
+}
+if (-not $alternate.Output.Contains('ya esta actualizado')) { throw 'Alternate app ID was not recognized.' }
+
+$headless = Assert-Success -Name 'headless certificate login option' -Arguments ($common + @('-Force', '-NoBrowser')) -Environment @{
+    MOCK_EXPECT_ARGUMENT = '--no-browser'
+}
+if (-not $headless.Output.Contains('instalado y verificado correctamente')) { throw 'Headless install did not complete.' }
 
 Write-Host "`nAll Windows integration tests passed."
 exit 0

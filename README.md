@@ -74,9 +74,25 @@ Para comprobar la conexion, la configuracion del TV y el catalogo sin instalar:
 
 Para usar una CLI de Apps2Samsung ya instalada, indica `-CliPath` en Windows o `--cli-path` en Linux.
 
+En un sistema sin navegador grafico, la primera creacion del certificado puede imprimir el enlace de inicio de sesion Samsung en vez de intentar abrirlo:
+
+```powershell
+.\install.ps1 -TvIp 192.168.1.11 -NoBrowser
+```
+
+```bash
+./install.sh --tv-ip 192.168.1.11 --no-browser
+```
+
+Las consultas y descargas de red se reintentan tres veces con espera progresiva. Puede cambiarse con `-NetworkRetries 5` o `--network-retries 5`. Si GitHub no responde pero ya existe una CLI almacenada y verificada, se utiliza esa copia.
+
 ## Actualizar Moonfin
 
 Ejecuta exactamente el mismo comando. El instalador consulta la ultima publicacion estable de Apps2Samsung, valida su SHA-256, busca la ultima version de Moonfin de la variante elegida e instala la actualizacion sobre la aplicacion existente. Si la version instalada ya coincide, no hace cambios.
+
+Las versiones se comparan como SemVer. Si el TV tiene una version posterior a la del catalogo, el instalador bloquea el downgrade. Para autorizarlo deliberadamente use `-AllowDowngrade` en Windows o `--allow-downgrade` en Linux.
+
+El listado del TV tambien se compara con `catalogApp`, lo que permite reconocer IDs alternativos recordados por Apps2Samsung. Como el TV no informa cual variante usa cuando `Regular` y `Oblong` comparten ID y version, el instalador guarda la variante despues de cada instalacion exitosa. Si aun es desconocida, indicar `-Variant` o `--variant` explicitamente realiza el cambio una vez y deja el estado registrado.
 
 Para reinstalar la misma version:
 
@@ -90,9 +106,13 @@ Para reinstalar la misma version:
 
 No borres `.state`: contiene el certificado de firma y la cache local necesarios para futuras actualizaciones. `.state` y `.tools` estan excluidos de Git; no copies ni publiques su contenido.
 
+Antes de actualizar una copia existente se comprueba que haya un certificado de autor reutilizable. Un certificado vencido, ilegible o ausente detiene la actualizacion con instrucciones; generar uno distinto no puede sobrescribir una aplicacion firmada anteriormente. Los errores de certificado devueltos por el TV distinguen incompatibilidad de autor y vencimiento o reloj incorrecto. El instalador nunca desinstala Moonfin automaticamente.
+
 ## CI/CD
 
 Cada push a `main` y cada pull request ejecutan validacion de sintaxis y pruebas de integracion en runners Windows y Ubuntu. Las pruebas simulan el TV y Apps2Samsung; no necesitan credenciales ni un televisor real.
+
+Los pushes a `main`, las ejecuciones manuales, las releases y una tarea semanal tambien descargan la CLI estable real, verifican su SHA-256 y comprueban los contratos JSON actuales del catalogo Moonfin y de certificados. Los pull requests conservan solamente las pruebas simuladas para no depender de red ni tokens externos.
 
 Un tag con formato `v*` ejecuta ambas suites y, solamente si pasan, crea una GitHub Release con paquetes separados para Windows/Linux y un archivo `SHA256SUMS`.
 
