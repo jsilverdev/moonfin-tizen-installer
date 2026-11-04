@@ -1,0 +1,53 @@
+name: Release installers
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  validate-linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash -n ./install.sh && bash ./tests/integration-linux.sh
+
+  validate-windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - shell: pwsh
+        run: .\tests\integration-windows.ps1
+
+  publish:
+    needs: [validate-linux, validate-windows]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build release archives
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -Eeuo pipefail
+          mkdir -p release/windows release/linux
+          cp Install-Moonfin.ps1 README.md release/windows/
+          cp install.sh README.md release/linux/
+          chmod +x release/linux/install.sh
+          (cd release/windows && zip -9 "../moonfin-tizen-installer-${RELEASE_TAG}-windows.zip" Install-Moonfin.ps1 README.md)
+          tar -C release/linux -czf "release/moonfin-tizen-installer-${RELEASE_TAG}-linux.tar.gz" install.sh README.md
+          (cd release && sha256sum *.zip *.tar.gz > SHA256SUMS)
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" \
+            release/*.zip release/*.tar.gz release/SHA256SUMS \
+            --verify-tag \
+            --generate-notes \
+            --title "Moonfin Tizen Installer $RELEASE_TAG"

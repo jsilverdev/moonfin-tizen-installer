@@ -6,3 +6,12 @@
 
 # Local logs
 *.log
+
+# Local configuration and exported certificates
+.env
+.env.*
+*.key
+*.pem
+*.p12
+*.pfx
+profiles.xml

@@ -1,0 +1,46 @@
+name: Validate installers
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Bash syntax
+        run: |
+          bash -n ./install.sh
+          bash -n ./tests/integration-linux.sh
+          bash -n ./tests/mock-apps2samsung.sh
+      - name: Run Linux integration tests
+        run: bash ./tests/integration-linux.sh
+
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate PowerShell syntax
+        shell: pwsh
+        run: |
+          $files = @('.\Install-Moonfin.ps1', '.\tests\integration-windows.ps1', '.\tests\mock-apps2samsung.ps1')
+          foreach ($file in $files) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file), [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors.Count -gt 0) {
+              $errors | Format-List | Out-String | Write-Error
+              exit 1
+            }
+          }
+      - name: Run Windows integration tests
+        shell: pwsh
+        run: .\tests\integration-windows.ps1

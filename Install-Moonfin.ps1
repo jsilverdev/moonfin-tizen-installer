@@ -10,9 +10,13 @@ param(
     [ValidateSet('Regular', 'Oblong')]
     [string]$Variant = 'Regular',
 
+    [string]$CliPath,
+
     [switch]$Launch,
 
-    [switch]$Force
+    [switch]$Force,
+
+    [switch]$ValidateOnly
 )
 
 Set-StrictMode -Version Latest
@@ -22,6 +26,16 @@ $repoRoot = $PSScriptRoot
 $toolsRoot = Join-Path $repoRoot '.tools'
 $stateRoot = Join-Path $repoRoot '.state\apps2samsung'
 $githubHeaders = @{ 'User-Agent' = 'moonfin-tizen-installer' }
+
+function Assert-IPv4Address {
+    param([Parameter(Mandatory)][string]$Address)
+
+    $parsed = $null
+    if (-not [System.Net.IPAddress]::TryParse($Address, [ref]$parsed) -or
+        $parsed.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork) {
+        throw "'$Address' no es una direccion IPv4 valida."
+    }
+}
 
 function Get-LanAddress {
     param([Parameter(Mandatory)][string]$RemoteAddress)
@@ -90,14 +104,27 @@ function Get-Apps2SamsungCli {
     return $cliPath
 }
 
+function Resolve-Apps2SamsungCli {
+    if ([string]::IsNullOrWhiteSpace($CliPath)) {
+        return Get-Apps2SamsungCli
+    }
+
+    $resolved = Resolve-Path -LiteralPath $CliPath -ErrorAction Stop
+    if (-not (Test-Path -LiteralPath $resolved.Path -PathType Leaf)) {
+        throw "La CLI de Apps2Samsung no es un archivo: $CliPath"
+    }
+    return $resolved.Path
+}
+
 function Invoke-CliJson {
     param(
         [Parameter(Mandatory)][string]$CliPath,
         [Parameter(Mandatory)][string[]]$CliArguments
     )
 
+    $global:LASTEXITCODE = 0
     $output = & $CliPath @CliArguments --json --quiet
-    $exitCode = $LASTEXITCODE
+    $exitCode = $global:LASTEXITCODE
     $text = $output | Out-String
     try {
         $result = $text | ConvertFrom-Json
@@ -138,12 +165,16 @@ function Assert-TvReady {
     Write-Host "TV listo: $($tv.tv.model), Tizen $($tv.tizenVersion)."
 }
 
-if (-not $LocalIp) {
+Assert-IPv4Address -Address $TvIp
+if ($LocalIp) {
+    Assert-IPv4Address -Address $LocalIp
+}
+else {
     $LocalIp = Get-LanAddress -RemoteAddress $TvIp
 }
 
 New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
-$cli = Get-Apps2SamsungCli
+$cli = Resolve-Apps2SamsungCli
 Assert-TvReady -CliPath $cli -TvAddress $TvIp -PcAddress $LocalIp
 
 Write-Host 'Consultando Moonfin en el catalogo firmado...'
@@ -165,13 +196,19 @@ if (-not $packageFile) {
     throw "Moonfin no publico una variante $Variant en la version actual."
 }
 
+
+if ($ValidateOnly) {
+    Write-Host "Validacion completada: TV listo y Moonfin $($packageFile.version) ($Variant) disponible."
+    exit 0
+}
+
 $installedBefore = Invoke-CliJson -CliPath $cli -CliArguments @(
     'installed', '--tv', $TvIp,
     '--local-ip', $LocalIp,
     '--data-dir', $stateRoot
 )
 $current = $installedBefore.apps |
-    Where-Object { $_.appId -eq 'MoonfinApp.moonfin' } |
+    Where-Object { $null -ne $_ -and $_.appId -eq 'MoonfinApp.moonfin' } |
     Select-Object -First 1
 
 if ($current -and ([string]$current.version -eq [string]$packageFile.version) -and -not $Force) {
@@ -208,9 +245,10 @@ if ($Launch) {
 }
 
 # Deliberately omit --remove-first and --allow-remove: updates must not erase app data silently.
+$global:LASTEXITCODE = 0
 & $cli @installArguments
-if ($LASTEXITCODE -ne 0) {
-    throw "La instalacion termino con codigo $LASTEXITCODE. No se elimino ninguna aplicacion."
+if ($global:LASTEXITCODE -ne 0) {
+    throw "La instalacion termino con codigo $global:LASTEXITCODE. No se elimino ninguna aplicacion."
 }
 
 $installedAfter = Invoke-CliJson -CliPath $cli -CliArguments @(
@@ -219,7 +257,7 @@ $installedAfter = Invoke-CliJson -CliPath $cli -CliArguments @(
     '--data-dir', $stateRoot
 )
 $verified = $installedAfter.apps |
-    Where-Object { $_.appId -eq 'MoonfinApp.moonfin' } |
+    Where-Object { $null -ne $_ -and $_.appId -eq 'MoonfinApp.moonfin' } |
     Select-Object -First 1
 
 if (-not $verified) {
