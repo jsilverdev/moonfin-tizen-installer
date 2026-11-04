@@ -55,13 +55,6 @@ Keep the `.state` directory. It contains the signing certificate required to upd
 
 Network operations retry three times by default. If GitHub is temporarily unavailable, an already downloaded Apps2Samsung CLI can be reused.
 
-## CI/CD
+## Continuous integration
 
-GitHub Actions validates PowerShell and Bash on Windows and Ubuntu. A live contract test also verifies the current Apps2Samsung release, SHA-256 digest, Moonfin catalog, and certificate JSON schema on pushes to `main`, releases, manual runs, and a weekly schedule.
-
-Pushing a `v*` tag creates Windows and Linux archives plus `SHA256SUMS` after all checks pass.
-
-```bash
-git tag v1.0.0
-git push origin v1.0.0
-```
+GitHub Actions validates PowerShell and Bash on Windows and Ubuntu. A live contract test also verifies the current Apps2Samsung release, SHA-256 digest, Moonfin catalog, and certificate JSON schema on pushes to `main`, manual runs, and a weekly schedule.
